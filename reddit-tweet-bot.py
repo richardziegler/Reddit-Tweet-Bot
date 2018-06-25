@@ -2,6 +2,7 @@ import tweepy
 import praw
 import time
 import os
+from prawcore import ResponseException
 
 # Initiating global variables for use later
 POSTED_CACHE = 'post_log.txt'
@@ -56,20 +57,23 @@ def log_tweet(post_id):
 def main():
     while True:
         try:
-            subreddit = reddit.subreddit('SUBREDDIT_TO_CHECK').new()
+            subreddit = reddit.subreddit('SUBREDDIT_TO_CHECK').new(limit=1)
             for submission in subreddit:
                     post_id = submission.id
                     if not already_tweeted(post_id):
-                        api.update_status(submission.title + " " + 'redd.it/' + post_id + ' \n' + submission.url)
+                        api.update_status(submission.title + " // " + 'redd.it/' + post_id + ' \n' + submission.url + " #PlayArtifact")
                         print(submission.title + " \n" + submission.url)
                         print(post_id)
                         log_tweet(post_id)
                     else:
                         print('error: Tweet is a duplicate { ID: ' + post_id + ' }')
                     break
-        except tweepy.TweepError as e:
-                print(e.reason)
-        time.sleep(30)
+            time.sleep(45)
+        except ResponseException:
+        # PRAW returns ResponseException on 503 HTTP response
+            print("Reddit is too busy right now. Reconnecting in 3m.")
+            time.sleep(180)
+            main()
 
 if __name__ == '__main__':
     main()
