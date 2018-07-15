@@ -2,6 +2,8 @@ import tweepy
 import praw
 import time
 import os
+import requests
+import urllib.parse
 from prawcore import ResponseException
 
 # Initiating global variables for use later
@@ -52,6 +54,32 @@ def log_tweet(post_id):
     with open(POSTED_CACHE, 'a') as out_file:
         out_file.write(str(post_id) + '\n')
 
+# Function to download Reddit or Imgur photo
+def tweet(url, tweet_message):
+    if "i.redd.it" in url or "imgur.com" in url:
+        print("We recognize the image URL.")
+        file_name = os.path.basename(urllib.parse.urlsplit(url).path)
+        request = requests.get(url, stream=True)
+        if request.status_code == 200:
+            # Request and Download Image form URL
+            with open(file_name, 'wb') as image:
+                for chunk in request:
+                    image.write(chunk)
+            print("Tweeting /w Image...")
+            try:        # Handling situations where we get an imgur gallery or other non-image URL.
+                api.update_with_media(file_name, status=tweet_message)
+                os.remove(file_name)
+            except tweepy.TweepError:   # Tweets out with URL attached if we get TweepyError.
+                print("Encountered an error. Tweeting as normal with link")
+                api.update_status(tweet_message)
+                os.remove(file_name)
+        else:   # If request status code is not 200, tweets without image.
+            print("Unable to download image")
+            api.update_status(tweet_message)
+    else:
+        print("No 'i.redd.it' or 'imgur.com' in URL")
+        api.update_status(tweet_message)
+
 # Checking the new submissions in the Subreddit and then tweeting them out + running the log functions above.
 # If the tweet is a duplicate, it will print out an error to the console.
 def main():
@@ -61,8 +89,18 @@ def main():
             for submission in subreddit:
                     post_id = submission.id
                     if not already_tweeted(post_id):
-                        api.update_status(submission.title + " // " + 'redd.it/' + post_id + ' \n' + submission.url + " #PlayArtifact")
-                        print(submission.title + " \n" + submission.url)
+                        submission_title = submission.title
+                        submission_url = submission.url
+                        # Check to see if Title is too long for Twitter, if so, WE SLICE IT UP!
+                        if len(submission_title) > 210:
+                            submission_title = submission_title[0:210] + "..."
+                        # Checks for what kind of URL we have to avoid duplicate links to the same page.
+                        if "reddit.com/r/SUBREDDIT_TO_CHECK/comments" in submission_url:
+                            tweet_message = submission_title + ' redd.it/' + post_id + " #HashTag"
+                        else:
+                            tweet_message = submission_title + ' redd.it/' + post_id + ' \n' + submission_url + " #HashTag"
+                        tweet(submission_url, tweet_message)
+                        print(submission_title + " \n" + submission_url)
                         print(post_id)
                         log_tweet(post_id)
                     else:
