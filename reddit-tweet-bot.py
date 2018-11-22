@@ -95,7 +95,7 @@ def main():
                         if len(submission_title) > 210:
                             submission_title = submission_title[0:210] + "..."
                         # Checks for what kind of URL we have to avoid duplicate links to the same page.
-                        if "reddit.com/r/SUBREDDIT_TO_CHECK/comments" in submission_url:
+                        if "reddit.com/r/SUBREDDIT_TO_CHECK/comments" in submission_url or "i.redd.it" in submission_url or "imgur.com" in submission_url:
                             tweet_message = submission_title + ' redd.it/' + post_id + " #HashTag"
                         else:
                             tweet_message = submission_title + ' redd.it/' + post_id + ' \n' + submission_url + " #HashTag"
@@ -106,11 +106,11 @@ def main():
                     else:
                         print('error: Tweet is a duplicate { ID: ' + post_id + ' }')
                     break
-            time.sleep(45)
+            time.sleep(300)
         except ResponseException:
         # PRAW returns ResponseException on 503 HTTP response
             print("Reddit is too busy right now. Reconnecting in 3m.")
-            time.sleep(180)
+            time.sleep(400)
             main()
 
 if __name__ == '__main__':
